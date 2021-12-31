@@ -2,7 +2,7 @@
 import threading
 
 from jqdatasdk import *
-from datetime import datetime, date, timedelta
+import datetime
 import numpy as np
 from matplotlib import pyplot as plt
 from copy import copy
@@ -336,65 +336,48 @@ class Chan_Strategy:
             plt.bar(self.buy_x, self.buy_y, color="red");
             plt.bar(self.sell_x, self.sell_y, color="green");
             plt.grid();
-            plt.savefig("./t2.png")
+            plt.savefig("./t"+ context.current_dt +".png")
 
 
 chan = Chan_Strategy()
 
-def set_parameter(index):
+# 初始化函数，设定基准等等
+def initialize(beforeOfDay):
+    print('初始函数开始运行且全局只运行一次')
     # 设置RSRS指标中N, M的值
     # 统计周期
-    context.N = 18
-    context.previous_date = date.today() + timedelta(days=-index)
-    context.current_dt = date.today()
+    context.N = 400
     context.security = '600030.XSHG'
 
-# 初始化函数，设定基准等等
-def initialize(index):
-    print('初始函数开始运行且全局只运行一次')
-    set_parameter(index)
-    print('%s 开盘开始' % str(context.previous_date))
+    today = datetime.datetime.now()
+    # 计算偏移量
+    offset = datetime.timedelta(days=-beforeOfDay)
+    # 获取想要的日期的时间
+    context.current_dt = (today + offset).strftime('%Y-%m-%d')
+
     # 开盘时运行
     market_open(context)
 
 
 ## 开盘时运行函数
 def market_open(context):
-    print('函数运行时间(market_open):' + str(context.current_dt.strftime("%Y-%m-%d %H:%M:%S")))
-    security = context.security
     # 获取股票的收盘价
-    df = get_bars(security, count=400, unit='1d', fields=['date', 'open', 'high', 'low', 'close'], include_now=False, end_dt=context.current_dt.strftime("%Y-%m-%d"))
+    df = get_bars(context.security, count=context.N, unit='1d', fields=['date', 'open', 'high', 'low', 'close'], include_now=False, end_dt=context.current_dt)
     if df is not None:
         for row in df.itertuples():
             # print(row)
             bar = BarData(datetime=getattr(row,'date'), high_price=getattr(row,'high'), low_price=getattr(row,'low'), close_price=getattr(row,'close'))
             chan.on_bar(bar)
 
+def timer():
+    index = 85
+    while True:
+        index -= 1
+        if index == 0:
+            break;
+        initialize(index)  # 此处为要执行的任务
+        sec = input('Continue? y/n : ')
 
-## 收盘后运行函数
-def after_market_close(context):
-    print(str('函数运行时间(after_market_close):' + str(context.current_dt.time())))
-    # 得到当天所有成交记录
-    # trades = get_trades()
-    # for _trade in trades.values():
-    #     print('成交记录：' + str(_trade))
-    print('一天结束')
-    print('##############################################################')
-
-
-initialize(85);
-
-# def timer():
-#     index = 85
-#     while True:
-#         index -= 1
-#         if index == 0:
-#             break;
-#         initialize(index)  # 此处为要执行的任务
-#         print("=======================================")
-#         time.sleep(1)
-#         return ;
-#
-# timer = threading.Timer(1, timer).start()
+timer = threading.Timer(1, timer).start()
 
 
